@@ -162,17 +162,8 @@ def create_reel(
 
     final = concatenate_videoclips(clips, method="compose", padding=-crossfade)
 
-    # Subtitles
-    intro_offset = 3.0 if title_card_path else 0.0
-    subs = []
-    for seg in script_segments:
-        text = (seg.get("on_screen_text") or "").strip()
-        if text:
-            subs.append(_subtitle(text, resolution,
-                                  seg.get("start_time", 0) + intro_offset,
-                                  seg.get("actual_duration_seconds", 4), style_cfg))
-    if subs:
-        final = CompositeVideoClip([final] + subs)
+    
+    # Subtitles disabled (ImageMagick not available)
 
     # Background music
     if bg_music_path and os.path.exists(bg_music_path):
