@@ -134,6 +134,33 @@ def _normalize_clip(
 
 
 def _crossfade_concat(clip_paths: list, output_path: str, crossfade: float, fps: int):
+    """Concatenate clips using concat demuxer — fast and reliable."""
+    if len(clip_paths) == 1:
+        shutil.copy(clip_paths[0], output_path)
+        return
+
+    # Write concat list file
+    list_path = output_path + "_list.txt"
+    with open(list_path, "w") as f:
+        for p in clip_paths:
+            f.write(f"file '{p}'\n")
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", list_path,
+        "-c:v", "libx264", "-preset", "ultrafast",
+        "-pix_fmt", "yuv420p",
+        output_path
+    ]
+    try:
+        _run(cmd, "concat")
+    finally:
+        try:
+            os.remove(list_path)
+        except Exception:
+            pass
     """Concatenate clips with xfade crossfade transitions."""
     if len(clip_paths) == 1:
         shutil.copy(clip_paths[0], output_path)
