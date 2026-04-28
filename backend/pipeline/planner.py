@@ -68,6 +68,9 @@ Topic: {topic}
 3. Keep each voiceover under 18 words — punchy and conversational.
 4. on_screen_text should be 1–5 words max — bold, impactful captions.
 5. hook_options: give 3 alternative opening hooks (A/B test ideas).
+6. Generate MINIMUM 15 segments for a 60-90 second professional reel.
+7. Each segment should be 4-6 seconds. Reuse media files across segments if needed.
+8. For longer videos (2-3 mins), generate 25-30 segments. No upper limit on duration.
 
 Return ONLY raw JSON (no markdown):
 {{
@@ -76,7 +79,7 @@ Return ONLY raw JSON (no markdown):
     "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
     "hook_options": ["Hook A", "Hook B", "Hook C"],
     "thumbnail_prompt": "Describe ideal YouTube thumbnail visual",
-    "total_duration_estimate": 30,
+    "total_duration_estimate": 180,
     "script_segments": [
         {{
             "segment_id": 1,
