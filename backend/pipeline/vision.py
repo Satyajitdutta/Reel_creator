@@ -52,13 +52,25 @@ Respond ONLY with JSON (no markdown):
 For images, duration_estimate seconds = 0.
 For videos, estimate viewing duration in seconds.
 """
-            response = client.models.generate_content(
-                model=model,
-                contents=[
-                    types.Part.from_bytes(data=base64.b64decode(data), mime_type=mime),
-                    types.Part.from_text(text=prompt),
-                ],
-            )
+            import time
+            last_err = None
+            for attempt in range(5):
+                try:
+                    response = client.models.generate_content(
+                        model=model,
+                        contents=[
+                            types.Part.from_bytes(data=base64.b64decode(data), mime_type=mime),
+                            types.Part.from_text(text=prompt),
+                        ],
+                    )
+                    break
+                except Exception as e:
+                    last_err = e
+                    wait = 10 * (attempt + 1)
+                    log.warning(f"  Vision attempt {attempt+1} failed: {e} — retrying in {wait}s")
+                    time.sleep(wait)
+            else:
+                raise last_err
 
             import json, re
             text = response.text.strip()
