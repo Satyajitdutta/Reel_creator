@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+*, *::before, *::after { box-sizing: border-box; margin: 0; }
+html, body, #root { height: 100%; }
+body { background: #060609; }
