@@ -523,7 +523,7 @@ export default function App() {
             </aside>
 
             {/* ── INSTRUMENT PANEL ───────────────────────────────────── */}
-            <main className="flex-1 flex flex-col overflow-hidden min-w-0 border-r border-[#1C1C26]">
+            <main className="flex-1 flex flex-col overflow-y-auto min-w-0 border-r border-[#1C1C26]">
 
               {/* Panel tabs */}
               <div className="flex border-b border-[#1C1C26] bg-[#0A0A11] flex-shrink-0">
