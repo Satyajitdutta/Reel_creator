@@ -1,11 +1,15 @@
 """
-vision.py — Gemini Vision analysis of every uploaded media file.
-This is how InVideo AI "understands" your content before scripting.
+vision.py — Parallel Gemini Vision analysis of every uploaded media file.
+Analyzes 5 files simultaneously for fast processing of large libraries.
 """
 import os
 import base64
 import mimetypes
 import logging
+import json
+import re
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from google import genai
 from google.genai import types
 
@@ -13,7 +17,6 @@ log = logging.getLogger(__name__)
 
 
 def _encode_file(path: str) -> tuple[str, str]:
-    """Return (base64_data, mime_type) for any image or video file."""
     mime, _ = mimetypes.guess_type(path)
     if not mime:
         ext = os.path.splitext(path)[1].lower()
@@ -23,14 +26,10 @@ def _encode_file(path: str) -> tuple[str, str]:
 
 
 def analyze_media(file_paths: list[str], api_key: str, model: str) -> list[dict]:
-    """
-    Use Gemini Vision to describe each uploaded file.
-    Returns a list of dicts: {path, filename, type, description, mood, actions, best_for}
-    """
     client = genai.Client(api_key=api_key)
     results = []
 
-    for path in file_paths:
+    def analyze_one(path):
         try:
             data, mime = _encode_file(path)
             fname = os.path.basename(path)
@@ -44,15 +43,12 @@ Respond ONLY with JSON (no markdown):
   "pet_type":    "dog | cat | bird | rabbit | hamster | reptile | other",
   "pet_name_guess": "if a name is visible on a tag/collar, otherwise null",
   "mood":        "funny | cute | calm | energetic | dramatic | heartwarming",
-  "actions":     ["list", "of", "key", "actions", "or", "expressions"],
+  "actions":     ["list", "of", "key", "actions"],
   "best_for":    "hook | middle | payoff | outro | any",
   "quality":     "high | medium | low",
-  "duration_estimate": {{"seconds": 0}} 
+  "duration_estimate": {{"seconds": 0}}
 }}
-For images, duration_estimate seconds = 0.
-For videos, estimate viewing duration in seconds.
 """
-            import time
             last_err = None
             for attempt in range(5):
                 try:
@@ -67,25 +63,23 @@ For videos, estimate viewing duration in seconds.
                 except Exception as e:
                     last_err = e
                     wait = 10 * (attempt + 1)
-                    log.warning(f"  Vision attempt {attempt+1} failed: {e} — retrying in {wait}s")
+                    log.warning(f"  Vision retry {attempt+1}: {e} — waiting {wait}s")
                     time.sleep(wait)
             else:
                 raise last_err
 
-            import json, re
             text = response.text.strip()
-            # strip any accidental markdown fences
             text = re.sub(r"```json|```", "", text).strip()
             info = json.loads(text)
             info["path"]     = path
             info["filename"] = fname
             info["type"]     = ftype
-            results.append(info)
-            log.info(f"  Analyzed {fname}: {info.get('mood')} {info.get('pet_type')}")
+            log.info(f"  Analyzed: {fname} — {info.get('mood')} {info.get('pet_type')}")
+            return info
 
         except Exception as e:
-            log.warning(f"  Vision analysis failed for {os.path.basename(path)}: {e}")
-            results.append({
+            log.warning(f"  Vision failed for {os.path.basename(path)}: {e}")
+            return {
                 "path": path,
                 "filename": os.path.basename(path),
                 "type": "image" if not path.lower().endswith((".mp4", ".mov")) else "video",
@@ -96,6 +90,12 @@ For videos, estimate viewing duration in seconds.
                 "best_for": "any",
                 "quality": "medium",
                 "duration_estimate": {"seconds": 0},
-            })
+            }
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(analyze_one, path): path for path in file_paths}
+        for future in as_completed(futures):
+            results.append(future.result())
+            log.info(f"  Progress: {len(results)}/{len(file_paths)} analyzed")
 
     return results
