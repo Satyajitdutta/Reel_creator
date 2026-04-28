@@ -1,6 +1,6 @@
 // api.ts — Railway backend client
 
-const BASE = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+const BASE = import.meta.env.VITE_BACKEND_URL || "https://web-production-66b2d.up.railway.app";
 
 async function req<T>(path: string, opts?: RequestInit): Promise<T> {
   const r = await fetch(`${BASE}${path}`, opts);
