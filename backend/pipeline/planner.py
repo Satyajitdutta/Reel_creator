@@ -94,14 +94,26 @@ Return ONLY raw JSON (no markdown):
 }}
 """
 
-    response = client.models.generate_content(
-        model=model,
-        contents=prompt,
-        config={"system_instruction": (
-            "You are a senior viral content strategist. "
-            "Output ONLY valid JSON. No prose, no markdown fences."
-        )},
-    )
+    import time
+    last_err = None
+    for attempt in range(5):
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config={"system_instruction": (
+                    "You are a senior viral content strategist. "
+                    "Output ONLY valid JSON. No prose, no markdown fences."
+                )},
+            )
+            break
+        except Exception as e:
+            last_err = e
+            wait = 10 * (attempt + 1)
+            log.warning(f"  Gemini attempt {attempt+1} failed: {e} — retrying in {wait}s")
+            time.sleep(wait)
+    else:
+        raise last_err
 
     text = response.text.strip()
     text = re.sub(r"```json|```", "", text).strip()
