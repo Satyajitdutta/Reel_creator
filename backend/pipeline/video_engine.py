@@ -183,7 +183,7 @@ def create_reel(
 
     log.info(f"  Encoding {final.duration:.1f}s → {output_path}")
     final.write_videofile(output_path, fps=fps, codec="libx264",
-                          audio_codec="aac", preset="fast",
+                          audio_codec="aac", preset="ultrafast",
                           ffmpeg_params=["-crf", "28"], logger=None)
 
     for c in clips:
