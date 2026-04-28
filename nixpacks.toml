@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["...", "libstdcxx-ng"] # Add modern stdc++ if needed
+nixPkgs = ["ffmpeg", "python311"]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
