@@ -234,6 +234,14 @@ export default function App() {
   const [connected,    setConnected]    = useState<boolean|null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
+  // ── Editable panel state ──────────────────────────────────────────────────
+  const [customStylePrompt, setCustomStylePrompt] = useState("");
+  const [clipDuration,      setClipDuration]      = useState(5);
+  const [editingPlan,       setEditingPlan]        = useState<any>(null);
+  const [voiceSpeed,        setVoiceSpeed]         = useState("normal");
+  const [customCta,         setCustomCta]          = useState("");
+  const [introText,         setIntroText]          = useState("");
+
   const logEndRef = useRef<HTMLDivElement>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -319,7 +327,13 @@ export default function App() {
       export_formats: exportFmts,
       media_list: selectedMedia.length ? selectedMedia : mediaFiles,
       media_analysis: analysisData,
-      brand: { channel_name: channelName, voice: brandVoice, cta: brandCta },
+      custom_style_prompt: customStylePrompt,
+      clip_duration: clipDuration,
+      voice_speed: voiceSpeed,
+      intro_text: introText,
+      custom_cta: customCta || brandCta,
+      edited_plan: editingPlan || plan,
+      brand: { channel_name: channelName, voice: brandVoice, cta: customCta || brandCta },
     };
     try {
       const { job_id } = await api.startGeneration(payload);
@@ -523,7 +537,7 @@ export default function App() {
             </aside>
 
             {/* ── INSTRUMENT PANEL ───────────────────────────────────── */}
-            <main className="flex-1 flex flex-col overflow-y-auto min-w-0 border-r border-[#1C1C26]">
+            <main className="flex-1 flex flex-col overflow-hidden min-w-0 border-r border-[#1C1C26]">
 
               {/* Panel tabs */}
               <div className="flex border-b border-[#1C1C26] bg-[#0A0A11] flex-shrink-0">
@@ -546,6 +560,7 @@ export default function App() {
               <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
 
                 {/* ── STYLE PANEL ─────────────────────────────────────── */}
+                {/* ── STYLE PANEL ─────────────────────────────────────── */}
                 {activePanel === "style" && <>
                   <div>
                     <SectionLabel><Wand2 size={10} className="text-[#D4A853]" />VIDEO STYLE PRESET</SectionLabel>
@@ -553,14 +568,11 @@ export default function App() {
                       {STYLE_PRESETS.map(s => (
                         <button key={s.id} onClick={() => setStyle(s.id)}
                           className={`text-left p-3 border rounded-sm transition-all duration-200 group
-                            ${style === s.id
-                              ? "border-[#D4A853]/60 bg-[#D4A853]/6"
-                              : "border-[#1C1C26] bg-[#0D0D14] hover:border-[#2A2A35]"}`}>
+                            ${style === s.id ? "border-[#D4A853]/60 bg-[#D4A853]/6" : "border-[#1C1C26] bg-[#0D0D14] hover:border-[#2A2A35]"}`}>
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.dot }} />
-                              <span className={`text-[10px] font-bold uppercase tracking-[0.15em]
-                                ${style === s.id ? "text-[#D4A853]" : "text-[#706A5F]"}`}>{s.label}</span>
+                              <span className={`text-[10px] font-bold uppercase tracking-[0.15em] ${style === s.id ? "text-[#D4A853]" : "text-[#706A5F]"}`}>{s.label}</span>
                             </div>
                             {style === s.id && <div className="w-1.5 h-1.5 rounded-full bg-[#D4A853]" />}
                           </div>
@@ -570,11 +582,34 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* Custom style override */}
+                  <div className="border border-[#D4A853]/15 bg-[#D4A853]/3 rounded-sm p-4 space-y-2">
+                    <SectionLabel className="mb-0"><Palette size={10} className="text-[#D4A853]" />STYLE OVERRIDE (CUSTOM)</SectionLabel>
+                    <p className="text-[9px] text-[#35353F]">Describe exactly how you want the video to look — overrides the preset above.</p>
+                    <textarea value={customStylePrompt} onChange={e => setCustomStylePrompt(e.target.value)}
+                      placeholder="e.g. Luxury brand aesthetic. Dark background, slow zooms, gold text, cinematic letterbox bars, warm color grade..."
+                      className="w-full bg-[#0D0D14] border border-[#1C1C26] rounded-sm px-3 py-2.5 text-xs text-[#E8E4DC] placeholder-[#252535] focus:outline-none focus:border-[#D4A853]/30 min-h-[68px] resize-none" />
+                  </div>
+
                   <div>
                     <SectionLabel><TrendingUp size={10} className="text-[#D4A853]" />REEL TOPIC</SectionLabel>
                     <input value={topic} onChange={e => setTopic(e.target.value)}
                       placeholder="e.g. My golden retriever's morning chaos"
                       className="w-full bg-[#0D0D14] border border-[#1C1C26] rounded-sm px-4 py-3 text-sm text-[#E8E4DC] placeholder-[#252535] focus:outline-none focus:border-[#D4A853]/40 transition-colors" />
+                  </div>
+
+                  {/* Clip duration slider */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <SectionLabel className="mb-0">DEFAULT CLIP DURATION</SectionLabel>
+                      <span className="text-[#D4A853] font-mono text-xs">{clipDuration}s per clip</span>
+                    </div>
+                    <input type="range" min={2} max={10} step={1} value={clipDuration}
+                      onChange={e => setClipDuration(Number(e.target.value))}
+                      className="w-full accent-[#D4A853]" />
+                    <div className="flex justify-between text-[8px] text-[#252535] font-mono mt-1">
+                      <span>2s (fast cuts)</span><span>6s (balanced)</span><span>10s (slow)</span>
+                    </div>
                   </div>
 
                   <div>
@@ -615,27 +650,126 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* Editable generated script */}
                   {plan && (
                     <div className="border border-[#D4A853]/20 bg-[#D4A853]/4 rounded-sm p-4 space-y-3">
-                      <div className="text-[8px] font-mono uppercase tracking-[0.2em] text-[#D4A853]/60 flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#D4A853]" /> GENERATED SCRIPT
+                      <div className="flex items-center justify-between">
+                        <div className="text-[8px] font-mono uppercase tracking-[0.2em] text-[#D4A853]/60 flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#D4A853]" /> GENERATED SCRIPT
+                        </div>
+                        <button onClick={() => setEditingPlan(editingPlan ? null : JSON.parse(JSON.stringify(plan)))}
+                          className="text-[8px] font-mono uppercase tracking-[0.15em] px-2 py-1 border border-[#D4A853]/20 text-[#D4A853]/60 hover:text-[#D4A853] hover:border-[#D4A853]/40 transition-all rounded-sm">
+                          {editingPlan ? "CANCEL" : "✏ EDIT"}
+                        </button>
                       </div>
-                      <p className="text-sm font-semibold text-[#E8E4DC]">{plan.title}</p>
-                      <div className="space-y-2 max-h-44 overflow-y-auto custom-scrollbar">
-                        {(plan.script_segments || []).map((seg: any, i: number) => (
-                          <div key={i} className="flex gap-3 text-[10px] border-l border-[#D4A853]/30 pl-3 py-0.5">
-                            <span className="text-[#D4A853]/60 font-mono uppercase w-16 flex-shrink-0">{seg.role}</span>
-                            <span className="text-[#706A5F]">{seg.voiceover_text}</span>
+
+                      {/* Editable title */}
+                      <div className="space-y-1">
+                        <p className="text-[8px] font-mono uppercase tracking-[0.2em] text-[#35353F]">TITLE</p>
+                        <input value={editingPlan ? editingPlan.title : plan.title}
+                          onChange={e => editingPlan && setEditingPlan({...editingPlan, title: e.target.value})}
+                          readOnly={!editingPlan}
+                          className={`w-full bg-[#0D0D14] border rounded-sm px-3 py-2 text-xs text-[#E8E4DC] focus:outline-none transition-colors
+                            ${editingPlan ? "border-[#D4A853]/30 focus:border-[#D4A853]/60" : "border-[#1C1C26] cursor-default"}`} />
+                      </div>
+
+                      {/* Segments */}
+                      <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar">
+                        {((editingPlan || plan).script_segments || []).map((seg: any, i: number) => (
+                          <div key={i} className="border border-[#1C1C26] rounded-sm p-2.5 space-y-2 bg-[#0A0A11]">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[8px] font-mono uppercase tracking-[0.15em] text-[#D4A853]/50">{seg.role} · {i+1}</span>
+                              {editingPlan && (
+                                <button onClick={() => {
+                                  const segs = [...editingPlan.script_segments];
+                                  segs.splice(i, 1);
+                                  setEditingPlan({...editingPlan, script_segments: segs});
+                                }} className="text-[8px] text-red-500/40 hover:text-red-400 font-mono uppercase tracking-wider">REMOVE</button>
+                              )}
+                            </div>
+
+                            <div>
+                              <p className="text-[7px] font-mono uppercase tracking-[0.2em] text-[#35353F] mb-1">VOICEOVER</p>
+                              {editingPlan ? (
+                                <textarea value={seg.voiceover_text}
+                                  onChange={e => {
+                                    const segs = [...editingPlan.script_segments];
+                                    segs[i] = {...segs[i], voiceover_text: e.target.value};
+                                    setEditingPlan({...editingPlan, script_segments: segs});
+                                  }}
+                                  className="w-full bg-[#08080D] border border-[#D4A853]/20 rounded-sm px-2 py-1.5 text-[10px] text-[#E8E4DC] focus:outline-none focus:border-[#D4A853]/40 resize-none min-h-[44px]" />
+                              ) : (
+                                <p className="text-[10px] text-[#706A5F] leading-relaxed">{seg.voiceover_text}</p>
+                              )}
+                            </div>
+
+                            <div>
+                              <p className="text-[7px] font-mono uppercase tracking-[0.2em] text-[#35353F] mb-1">CAPTION</p>
+                              {editingPlan ? (
+                                <input value={seg.on_screen_text || ""}
+                                  onChange={e => {
+                                    const segs = [...editingPlan.script_segments];
+                                    segs[i] = {...segs[i], on_screen_text: e.target.value};
+                                    setEditingPlan({...editingPlan, script_segments: segs});
+                                  }}
+                                  className="w-full bg-[#08080D] border border-[#D4A853]/20 rounded-sm px-2 py-1.5 text-[10px] text-[#D4A853] focus:outline-none focus:border-[#D4A853]/40" />
+                              ) : (
+                                <p className="text-[10px] text-[#D4A853]/60">{seg.on_screen_text}</p>
+                              )}
+                            </div>
+
+                            {editingPlan && (
+                              <div className="flex items-center gap-2">
+                                <p className="text-[7px] font-mono uppercase tracking-[0.2em] text-[#35353F]">DURATION</p>
+                                <input type="number" min={2} max={15} step={0.5}
+                                  value={seg.estimated_duration_seconds}
+                                  onChange={e => {
+                                    const segs = [...editingPlan.script_segments];
+                                    segs[i] = {...segs[i], estimated_duration_seconds: Number(e.target.value)};
+                                    setEditingPlan({...editingPlan, script_segments: segs});
+                                  }}
+                                  className="w-16 bg-[#08080D] border border-[#D4A853]/20 rounded-sm px-2 py-1 text-[10px] text-[#D4A853] focus:outline-none text-center" />
+                                <span className="text-[8px] text-[#35353F]">sec</span>
+                              </div>
+                            )}
                           </div>
                         ))}
+
+                        {editingPlan && (
+                          <button onClick={() => {
+                            const segs = [...editingPlan.script_segments];
+                            segs.push({ segment_id: segs.length + 1, role: "build",
+                              media_ref: segs[0]?.media_ref || "",
+                              voiceover_text: "Add your narration here",
+                              on_screen_text: "CAPTION", estimated_duration_seconds: 4 });
+                            setEditingPlan({...editingPlan, script_segments: segs});
+                          }}
+                          className="w-full py-2.5 border border-dashed border-[#D4A853]/20 text-[9px] font-mono uppercase tracking-[0.2em] text-[#D4A853]/40 hover:text-[#D4A853]/70 hover:border-[#D4A853]/40 transition-all rounded-sm">
+                            + ADD SEGMENT
+                          </button>
+                        )}
                       </div>
-                      {plan.hook_options?.length > 0 && (
+
+                      {editingPlan && (
+                        <button onClick={() => { setPlan(editingPlan); setEditingPlan(null); }}
+                          className="w-full py-2.5 bg-[#D4A853] text-[#08080D] text-[9px] font-bold uppercase tracking-[0.2em] rounded-sm hover:bg-[#E8BE6A] transition-colors">
+                          ✓ APPLY EDITS TO PIPELINE
+                        </button>
+                      )}
+
+                      {/* Hook options */}
+                      {plan.hook_options?.length > 0 && !editingPlan && (
                         <div className="pt-2 border-t border-[#1C1C26]">
-                          <p className="text-[8px] font-mono uppercase tracking-[0.2em] text-[#35353F] mb-1.5">HOOK OPTIONS</p>
+                          <p className="text-[8px] font-mono uppercase tracking-[0.2em] text-[#35353F] mb-2">HOOK OPTIONS — CLICK TO USE</p>
                           {plan.hook_options.map((h: string, i: number) => (
-                            <p key={i} className="text-[10px] text-[#35353F] flex gap-2 mb-1">
-                              <span className="text-[#D4A853]/50 font-mono">{String.fromCharCode(65+i)}</span>{h}
-                            </p>
+                            <button key={i} onClick={() => {
+                              const updated = JSON.parse(JSON.stringify(plan));
+                              if (updated.script_segments?.[0]) updated.script_segments[0].voiceover_text = h;
+                              setPlan(updated);
+                            }}
+                            className="w-full text-left text-[10px] flex gap-2 mb-2 p-2 rounded-sm hover:bg-[#D4A853]/5 text-[#35353F] hover:text-[#E8E4DC] transition-all group">
+                              <span className="text-[#D4A853]/50 font-mono flex-shrink-0">{String.fromCharCode(65+i)}.</span>{h}
+                            </button>
                           ))}
                         </div>
                       )}
@@ -661,12 +795,47 @@ export default function App() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Voice customization */}
+                  <div className="border border-[#D4A853]/15 bg-[#D4A853]/3 rounded-sm p-4 space-y-4">
+                    <SectionLabel className="mb-0">VOICE CUSTOMIZATION</SectionLabel>
+
+                    <div className="space-y-2">
+                      <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-[#35353F]">SPEAKING SPEED</p>
+                      <div className="flex gap-2">
+                        {(["slow","normal","fast"] as const).map(s => (
+                          <button key={s} onClick={() => setVoiceSpeed(s)}
+                            className={`flex-1 py-2 text-[9px] font-mono uppercase tracking-[0.15em] border rounded-sm transition-all
+                              ${voiceSpeed === s ? "border-[#D4A853]/50 bg-[#D4A853]/10 text-[#D4A853]" : "border-[#1C1C26] text-[#35353F] hover:border-[#2A2A35]"}`}>
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-[#35353F]">CUSTOM INTRO LINE</p>
+                      <input value={introText} onChange={e => setIntroText(e.target.value)}
+                        placeholder="e.g. Hey everyone, welcome back to PetReels!"
+                        className="w-full bg-[#0D0D14] border border-[#1C1C26] rounded-sm px-3 py-2 text-xs text-[#E8E4DC] placeholder-[#252535] focus:outline-none focus:border-[#D4A853]/30" />
+                      <p className="text-[8px] text-[#252535]">Prepended as first voiceover segment</p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-[#35353F]">CUSTOM OUTRO / CTA</p>
+                      <input value={customCta} onChange={e => setCustomCta(e.target.value)}
+                        placeholder="e.g. Follow for more daily pet content!"
+                        className="w-full bg-[#0D0D14] border border-[#1C1C26] rounded-sm px-3 py-2 text-xs text-[#E8E4DC] placeholder-[#252535] focus:outline-none focus:border-[#D4A853]/30" />
+                      <p className="text-[8px] text-[#252535]">Replaces the default outro CTA</p>
+                    </div>
+                  </div>
+
                   <div className="border-t border-[#1C1C26] pt-5 space-y-3">
                     <SectionLabel>ELEVENLABS (PREMIUM — OPTIONAL)</SectionLabel>
                     <input value={elVoiceId} onChange={e => setElVoiceId(e.target.value)}
                       placeholder="Voice ID (21m00Tcm4TlvDq8ikWAM = Rachel)"
                       className="w-full bg-[#0D0D14] border border-[#1C1C26] rounded-sm px-3 py-2 text-xs font-mono text-[#706A5F] focus:outline-none focus:border-[#D4A853]/30 placeholder-[#252535]" />
-                    <p className="text-[9px] text-[#252535]">Find voice IDs at elevenlabs.io/voice-library · Enter ElevenLabs key in Settings</p>
+                    <p className="text-[9px] text-[#252535]">Find voice IDs at elevenlabs.io/voice-library</p>
                   </div>
                 </>}
 
